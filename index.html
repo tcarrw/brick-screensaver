@@ -1,0 +1,967 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PLNT.earth long one</title>
+  <style>
+    :root {
+      --primary-color: #7C3AED;
+      --primary-light: #8B5CF6;
+      --primary-dark: #6D28D9;
+      --secondary-color: #F59E0B;
+      --secondary-light: #FBBF24;
+      --secondary-dark: #D97706;
+      --text-color: #E5E7EB;
+      --text-muted: #9CA3AF;
+      --bg-color: #0B0F19;
+      --bg-secondary: #1F2937;
+      --bg-tertiary: #374151;
+      --box-bg: rgba(30, 41, 59, 0.6);
+      --box-border: rgba(255, 255, 255, 0.1);
+      --moon-color: #F7FAFC;
+      --moon-shadow: #0F172A;
+      
+      /* Tetris piece colors */
+      --tetris-i: #00f0f0; /* I - Cyan */
+      --tetris-j: #0000f0; /* J - Blue */
+      --tetris-l: #f0a000; /* L - Orange */
+      --tetris-o: #f0f000; /* O - Yellow */
+      --tetris-s: #00f000; /* S - Green */
+      --tetris-t: #a000f0; /* T - Purple */
+      --tetris-z: #f00000; /* Z - Red */
+    }
+  
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      overflow: hidden;
+      background-color: #000;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      color: white;
+    }
+    
+    canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+    }
+    
+    .logo-container {
+      position: fixed;
+      top: 40px;
+      left: 40px;
+      font-size: 24px;
+      font-weight: bold;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      opacity: 0.6;
+      animation: fadeInOut 3s ease-in-out infinite alternate;
+    }
+    
+    @keyframes fadeInOut {
+      0% { opacity: 0.4; }
+      50% { opacity: 0.7; }
+      100% { opacity: 0.4; }
+    }
+    
+    .moon {
+      width: 12px;
+      height: 12px;
+      background-color: var(--secondary-color);
+      border-radius: 50%;
+      position: absolute;
+      box-shadow: 0 0 10px 2px rgba(255, 255, 119, 0.7);
+      transition: transform 1.5s cubic-bezier(0.455, 0.03, 0.515, 0.955);
+    }
+    
+    .clock {
+      position: fixed;
+      bottom: 40px;
+      right: 40px;
+      font-size: 36px;
+      font-weight: 300;
+      z-index: 100;
+      color: rgba(255, 255, 255, 0.8);
+      text-shadow: 0 0 20px rgba(100, 200, 255, 0.6);
+    }
+    
+    .moon-countdown {
+      position: fixed;
+      bottom: 85px;
+      right: 40px;
+      font-size: 16px;
+      font-weight: 300;
+      z-index: 100;
+      color: rgba(255, 255, 255, 0.7);
+      text-shadow: 0 0 10px rgba(100, 200, 255, 0.4);
+      text-align: right;
+    }
+    
+    .click-button {
+      position: fixed;
+      bottom: 40px;
+      left: 40px;
+      z-index: 100;
+      background: rgba(20, 40, 100, 0.5);
+      border: 2px solid var(--box-border);
+      color: white;
+      padding: 10px 15px;
+      font-size: 16px;
+      border-radius: 20px;
+      cursor: pointer;
+      backdrop-filter: blur(5px);
+      transition: all 0.3s ease;
+      box-shadow: 0 0 15px rgba(100, 150, 255, 0.4);
+    }
+    
+    .click-button:hover {
+      background: rgba(40, 80, 150, 0.7);
+      box-shadow: 0 0 20px rgba(100, 150, 255, 0.6);
+      border-color: var(--secondary-color);
+    }
+    
+    .click-log {
+      position: fixed;
+      bottom: 100px;
+      left: 40px;
+      width: 250px;
+      max-height: 200px;
+      overflow-y: auto;
+      background: rgba(10, 20, 40, 0.8);
+      border: 1px solid var(--box-border);
+      border-radius: 10px;
+      padding: 15px;
+      font-size: 14px;
+      color: rgba(255, 255, 255, 0.9);
+      z-index: 99;
+      backdrop-filter: blur(5px);
+      display: block;
+      box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+      scrollbar-width: none; /* Firefox */
+      -ms-overflow-style: none; /* IE and Edge */
+    }
+    
+    .click-log::-webkit-scrollbar {
+      display: none;
+    }
+    
+    .click-log p {
+      margin: 5px 0;
+      border-bottom: 1px solid rgba(100, 150, 255, 0.2);
+      padding-bottom: 5px;
+    }
+    
+    .hide-cursor {
+      cursor: none;
+    }
+    
+    .info {
+      position: fixed;
+      bottom: 20px;
+      left: 20px;
+      font-size: 12px;
+      color: var(--text-muted);
+      z-index: 100;
+    }
+    
+    .tetris-piece {
+      position: absolute;
+      z-index: 90;
+      transition: transform 0.2s ease;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="logo-container">
+    PLNT.earth
+    <div class="moon"></div>
+  </div>
+  
+  <div class="moon-countdown" id="moonCountdown"></div>
+  <div class="clock" id="clock"></div>
+  <button class="click-button" id="clickButton">Click Counter</button>
+  <div class="click-log" id="clickLog"></div>
+  <div class="info">Click anywhere...sound on. Bookmark this page.</div>
+  
+  <canvas id="spaceCanvas"></canvas>
+  
+  <script>
+    // Set up canvas
+    const canvas = document.getElementById('spaceCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    // Full screen dimensions
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    
+    // Audio context for tetris music
+    let audioContext;
+    let tetrisTheme;
+    let audioInitialized = false;
+    
+    // Orb properties
+    const orb = {
+      x: canvas.width / 2,
+      y: canvas.height / 2,
+      radius: Math.min(canvas.width, canvas.height) * 0.10,
+      velocity: { x: 0.5, y: 0.4 },
+      glow: 20,
+      rotation: 0,
+      moonPhase: 0, // 0 = new moon, 0.5 = full moon, 1 = new moon again
+      lastPhaseUpdate: Date.now()
+    };
+    
+    // Stars array
+    const stars = [];
+    const numStars = 300; // More stars for a richer background
+    
+    // Create stars
+    for (let i = 0; i < numStars; i++) {
+      stars.push({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        radius: Math.random() * 1.5,
+        alpha: Math.random(),
+        blinkSpeed: 0.01 + Math.random() * 0.03
+      });
+    }
+    
+    // Tetris pieces array
+    const tetrisPieces = [];
+    
+    // Tetris piece types and colors
+    const pieceTypes = [
+      { type: 'I', color: getComputedStyle(document.documentElement).getPropertyValue('--tetris-i') },
+      { type: 'J', color: getComputedStyle(document.documentElement).getPropertyValue('--tetris-j') },
+      { type: 'L', color: getComputedStyle(document.documentElement).getPropertyValue('--tetris-l') },
+      { type: 'O', color: getComputedStyle(document.documentElement).getPropertyValue('--tetris-o') },
+      { type: 'S', color: getComputedStyle(document.documentElement).getPropertyValue('--tetris-s') },
+      { type: 'T', color: getComputedStyle(document.documentElement).getPropertyValue('--tetris-t') },
+      { type: 'Z', color: getComputedStyle(document.documentElement).getPropertyValue('--tetris-z') }
+    ];
+    
+    // Tetris piece shapes (arrays of block positions)
+    const pieceShapes = {
+      'I': [[0,0], [1,0], [2,0], [3,0]],
+      'J': [[0,0], [0,1], [1,1], [2,1]],
+      'L': [[2,0], [0,1], [1,1], [2,1]],
+      'O': [[0,0], [1,0], [0,1], [1,1]],
+      'S': [[1,0], [2,0], [0,1], [1,1]],
+      'T': [[1,0], [0,1], [1,1], [2,1]],
+      'Z': [[0,0], [1,0], [1,1], [2,1]]
+    };
+    
+    // Logo moon orbit
+    let moonAngle = 0;
+    const logoElement = document.querySelector('.logo-container');
+    const moonElement = document.querySelector('.moon');
+    
+    // Update moon position
+    function updateMoon() {
+      // Create an elliptical orbit
+      const t = moonAngle;
+      const a = 50;  // horizontal radius
+      const b = 25;  // vertical radius
+      
+      // Calculate moon position based on parametric equation of ellipse
+      const moonX = a * Math.cos(t);
+      const moonY = b * Math.sin(t);
+      
+      // Position moon relative to the text using transform for smoother animation
+      moonElement.style.transform = `translate(${moonX}px, ${moonY}px)`;
+      
+      // Increment angle for continuous movement
+      moonAngle += 0.01;
+      if (moonAngle >= Math.PI * 2) {
+        moonAngle = 0;
+      }
+    }
+    
+    // Initialize moon position
+    moonElement.style.left = `${logoElement.offsetWidth}px`;
+    moonElement.style.top = '12px';
+    
+    // Use requestAnimationFrame for smoother animation
+    function animateMoon() {
+      updateMoon();
+      requestAnimationFrame(animateMoon);
+    }
+    
+    // Start moon animation
+    animateMoon();
+    
+    // Clock update function
+    function updateClock() {
+      const now = new Date();
+      
+      const hours = now.getHours().toString().padStart(2, '0');
+      const minutes = now.getMinutes().toString().padStart(2, '0');
+      const seconds = now.getSeconds().toString().padStart(2, '0');
+      
+      document.getElementById('clock').textContent = `${hours}:${minutes}:${seconds}`;
+    }
+    
+    // Calculate moon phase
+    function calculateMoonPhase() {
+      // The synodic month (time between new moons) is approximately 29.53059 days
+      const synodicMonth = 29.53059;
+      
+      // Reference full moon date (April 12, 2025)
+      const refFullMoon = new Date(2025, 3, 12, 20, 22, 0); // 8:22 PM on April 12
+      
+      // Current date
+      const now = new Date();
+      
+      // Days since reference full moon
+      const daysSinceRef = (now - refFullMoon) / (24 * 60 * 60 * 1000);
+      
+      // Normalize to 0-1 range where 0.5 is full moon and 0 or 1 is new moon
+      let phase = (daysSinceRef / synodicMonth) % 1;
+      if (phase < 0) phase += 1; // Adjust if negative
+      
+      // Convert to make 0.5 = full moon to match our visual representation needs
+      phase = (phase + 0.5) % 1;
+      
+      return phase;
+    }
+    
+    // Calculate time to next full moon
+    function calculateTimeToFullMoon() {
+      // Next full moon date (April 12, 2025 at 8:22 PM)
+      const nextFullMoon = new Date(2025, 3, 12, 20, 22, 0);
+      
+      // Current date
+      const now = new Date();
+      
+      // If we're past the reference full moon, calculate the next one
+      // (approximately 29.53 days later)
+      let targetFullMoon = new Date(nextFullMoon);
+      while (targetFullMoon < now) {
+        // Add one synodic month (29.53 days) to get the next full moon
+        targetFullMoon = new Date(targetFullMoon.getTime() + (29.53 * 24 * 60 * 60 * 1000));
+      }
+      
+      // Time difference in milliseconds
+      const timeDiff = targetFullMoon - now;
+      
+      // Convert to hours (with decimal)
+      const hoursToFullMoon = timeDiff / (1000 * 60 * 60);
+      
+      // Calculate days and remaining hours
+      const days = Math.floor(hoursToFullMoon / 24);
+      const hours = Math.floor(hoursToFullMoon % 24);
+      const minutes = Math.floor((hoursToFullMoon * 60) % 60);
+      
+      // Format the date string for the next full moon
+      const options = { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' };
+      const fullMoonDateStr = targetFullMoon.toLocaleDateString('en-US', options);
+      
+      return {
+        days,
+        hours,
+        minutes,
+        fullMoonDateStr,
+        totalHours: hoursToFullMoon
+      };
+    }
+    
+    // Update moon countdown display
+    function updateMoonCountdown() {
+      const timeToFullMoon = calculateTimeToFullMoon();
+      const countdownElement = document.getElementById('moonCountdown');
+      
+      // Full moon percentage (based on 29.53 day cycle, where full moon is 50%)
+      const fullMoonPercentage = Math.min(100, Math.max(0, 
+        (1 - Math.abs(orb.moonPhase * 2 - 1)) * 100
+      )).toFixed(1);
+      
+      // Display countdown in different formats
+      countdownElement.innerHTML = `Next Full Moon in: ${timeToFullMoon.days}d ${timeToFullMoon.hours}h ${timeToFullMoon.minutes}m <br>` +
+                                  `<span style="font-size: 12px; opacity: 0.8;">${timeToFullMoon.fullMoonDateStr} (${fullMoonPercentage}% full now)</span>`;
+    }
+    
+    // Update orb color based on moon phase
+    function updateOrbColor() {
+      // Calculate current moon phase (0 = new moon, 0.5 = full moon)
+      const currentPhase = calculateMoonPhase();
+      orb.moonPhase = currentPhase;
+    }
+    
+    // Initialize clock
+    updateClock();
+    setInterval(updateClock, 1000);
+    
+    // Initialize moon countdown
+    updateMoonCountdown();
+    setInterval(updateMoonCountdown, 6000); // Update every minute 60000
+    
+    // Initial color update
+    updateOrbColor();
+    
+    // Set interval to update the orb color every minute
+    setInterval(updateOrbColor, 60000);
+    
+    // Draw a tetris piece
+    function drawTetrisPiece(ctx, shape, x, y, blockSize, color, alpha = 1) {
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      
+      // For each block in the piece
+      for (let i = 0; i < shape.length; i++) {
+        const blockX = x + shape[i][0] * blockSize;
+        const blockY = y + shape[i][1] * blockSize;
+        
+        // Draw filled block
+        ctx.fillStyle = color;
+        ctx.fillRect(blockX, blockY, blockSize, blockSize);
+        
+        // Draw highlight (top and left edges)
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+        ctx.fillRect(blockX, blockY, blockSize, 2);
+        ctx.fillRect(blockX, blockY, 2, blockSize);
+        
+        // Draw shadow (bottom and right edges)
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+        ctx.fillRect(blockX, blockY + blockSize - 2, blockSize, 2);
+        ctx.fillRect(blockX + blockSize - 2, blockY, 2, blockSize);
+      }
+      
+      ctx.restore();
+    }
+    
+    // Add new tetris piece randomly
+    function addTetrisPiece() {
+      if (tetrisPieces.length < 5 && Math.random() < 0.005) {
+        // Select random piece type
+        const pieceInfo = pieceTypes[Math.floor(Math.random() * pieceTypes.length)];
+        const shape = pieceShapes[pieceInfo.type];
+        const blockSize = 20; // Size of each block in the tetris piece
+        
+        // Calculate piece width and height
+        let maxX = 0, maxY = 0;
+        for (let i = 0; i < shape.length; i++) {
+          maxX = Math.max(maxX, shape[i][0]);
+          maxY = Math.max(maxY, shape[i][1]);
+        }
+        const pieceWidth = (maxX + 1) * blockSize;
+        const pieceHeight = (maxY + 1) * blockSize;
+        
+        // Starting position - either from left or right edge
+        const fromLeft = Math.random() > 0.5;
+        const xPos = fromLeft ? -pieceWidth : canvas.width;
+        const yPos = 100 + Math.random() * (canvas.height - 200);
+        
+        const newPiece = {
+          type: pieceInfo.type,
+          color: pieceInfo.color,
+          shape: shape,
+          x: xPos,
+          y: yPos,
+          blockSize: blockSize,
+          speed: 1 + Math.random() * 3,
+          direction: fromLeft ? 1 : -1,
+          rotation: Math.floor(Math.random() * 4) * 90, // 0, 90, 180, or 270 degrees
+          alpha: 0.9
+        };
+        
+        tetrisPieces.push(newPiece);
+        
+        // Play sound if audio is initialized
+        if (audioInitialized) {
+          playTetrisSound();
+        }
+      }
+    }
+    
+    // Update tetris pieces positions
+    function updateTetrisPieces() {
+      for (let i = tetrisPieces.length - 1; i >= 0; i--) {
+        const piece = tetrisPieces[i];
+        
+        // Update position
+        piece.x += piece.speed * piece.direction;
+        
+        // Add slight Y movement
+        piece.y += Math.sin(Date.now() / 1000 + i) * 0.5;
+        
+        // Calculate piece width for removal check
+        let maxX = 0;
+        for (let j = 0; j < piece.shape.length; j++) {
+          maxX = Math.max(maxX, piece.shape[j][0]);
+        }
+        const pieceWidth = (maxX + 1) * piece.blockSize;
+        
+        // Remove if off screen
+        if ((piece.direction > 0 && piece.x > canvas.width + pieceWidth) || 
+            (piece.direction < 0 && piece.x < -pieceWidth)) {
+          tetrisPieces.splice(i, 1);
+        }
+      }
+    }
+    
+    // Draw stars
+    function drawStars() {
+      for (let i = 0; i < stars.length; i++) {
+        const star = stars[i];
+        
+        // Update star alpha for twinkling effect
+        star.alpha += star.blinkSpeed;
+        if (star.alpha > 1 || star.alpha < 0.3) {
+          star.blinkSpeed = -star.blinkSpeed;
+        }
+        
+        // Draw star
+        ctx.beginPath();
+        ctx.arc(star.x, star.y, star.radius, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(255, 255, 255, ${star.alpha})`;
+        ctx.fill();
+      }
+    }
+    
+    // Draw orb
+    function drawOrb() {
+      // Update orb position
+      orb.x += orb.velocity.x;
+      orb.y += orb.velocity.y;
+      
+      // Bounce off edges
+      if (orb.x - orb.radius <= 0 || orb.x + orb.radius >= canvas.width) {
+        orb.velocity.x = -orb.velocity.x;
+        if (audioInitialized) playTetrisSound();
+      }
+      
+      if (orb.y - orb.radius <= 0 || orb.y + orb.radius >= canvas.height) {
+        orb.velocity.y = -orb.velocity.y;
+        if (audioInitialized) playTetrisSound();
+      }
+      
+      // Calculate brightness factor (0 to 1)
+      // When phase is 0.5 (full moon), brightness is maximum
+      // When phase is 0 or 1 (new moon), brightness is minimum
+      const brightness = 1 - Math.abs(orb.moonPhase * 2 - 1);
+      
+      // Base colors
+      const newMoonColor = { r: 10, g: 10, b: 15 };            // Almost black
+      const fullMoonColor = { r: 255, g: 255, b: 119 };        // Yellow like the moon in logo
+      
+      // Interpolate between colors based on brightness
+      const r = Math.round(newMoonColor.r + (fullMoonColor.r - newMoonColor.r) * brightness);
+      const g = Math.round(newMoonColor.g + (fullMoonColor.g - newMoonColor.g) * brightness);
+      const b = Math.round(newMoonColor.b + (fullMoonColor.b - newMoonColor.b) * brightness);
+      
+      // Create gradient
+      const gradient = ctx.createRadialGradient(
+        orb.x, orb.y, orb.radius * 0.5,
+        orb.x, orb.y, orb.radius
+      );
+      
+      // Orb colors with interpolated values
+      const coreColor = `rgb(${r}, ${g}, ${b})`;
+      const midColor = `rgba(${r*0.7}, ${g*0.7}, ${b*0.7}, 0.9)`;
+      const edgeColor = `rgba(${r*0.4}, ${g*0.4}, ${b*0.4}, 0.8)`;
+      
+      gradient.addColorStop(0, coreColor);
+      gradient.addColorStop(0.85, midColor);
+      gradient.addColorStop(1, edgeColor);
+      
+      // Draw orb glow - brighter for fuller moon
+      const glowIntensity = Math.max(5, Math.round(orb.glow * brightness));
+      ctx.shadowBlur = glowIntensity;
+      ctx.shadowColor = coreColor;
+      
+      // Draw orb
+      ctx.beginPath();
+      ctx.arc(orb.x, orb.y, orb.radius, 0, Math.PI * 2);
+      ctx.fillStyle = gradient;
+      ctx.fill();
+      
+      // Reset shadow
+      ctx.shadowBlur = 0;
+      
+      // Draw orb surface details
+      ctx.save();
+      ctx.translate(orb.x, orb.y);
+      ctx.rotate(orb.rotation);
+      
+      // Surface pattern - more visible when closer to full moon
+      if (brightness > 0.1) {
+        for (let i = 0; i < 8; i++) {
+          const angle = (i / 8) * Math.PI * 2;
+          const x = Math.cos(angle) * (orb.radius * 0.6);
+          const y = Math.sin(angle) * (orb.radius * 0.6);
+          const size = orb.radius * 0.15;
+          
+          ctx.beginPath();
+          ctx.arc(x, y, size, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(${r*0.8}, ${g*0.8}, ${b*0.8}, ${0.3 * brightness})`;
+          ctx.fill();
+        }
+        
+        // Draw center feature if visible
+        if (brightness > 0.3) {
+          ctx.beginPath();
+          ctx.arc(0, 0, orb.radius * 0.3, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(${r*0.9}, ${g*0.9}, ${b*0.9}, ${0.5 * brightness})`;
+          ctx.fill();
+        }
+      }
+      
+      ctx.restore();
+      
+      // Update rotation - slower when darker
+      orb.rotation += 0.005 * (0.2 + brightness * 0.8);
+    }
+    
+    // Initialize audio
+    function initAudio() {
+      if (audioInitialized) return;
+      
+      try {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        
+        // Set up Tetris theme (Russian folk song "Korobeiniki")
+        // We'll use a simplified version with oscillators
+        
+        audioInitialized = true;
+        
+        // Start the Tetris theme music
+        playTetrisTheme();
+        
+        // Play an initial sound
+        setTimeout(() => playTetrisSound(), 500);
+      } catch (error) {
+        console.error("Error initializing audio:", error);
+      }
+    }
+    
+    // Play Tetris theme music
+    function playTetrisTheme() {
+      if (!audioInitialized) return;
+      
+      // The notes of the Tetris theme melody
+      const tetrisNotes = [
+        { note: 'E5', duration: 0.25 },
+        { note: 'B4', duration: 0.125 },
+        { note: 'C5', duration: 0.125 },
+        { note: 'D5', duration: 0.25 },
+        { note: 'C5', duration: 0.125 },
+        { note: 'B4', duration: 0.125 },
+        { note: 'A4', duration: 0.25 },
+        { note: 'A4', duration: 0.125 },
+        { note: 'C5', duration: 0.125 },
+        { note: 'E5', duration: 0.25 },
+        { note: 'D5', duration: 0.125 },
+        { note: 'C5', duration: 0.125 },
+        { note: 'B4', duration: 0.375 },
+        { note: 'C5', duration: 0.125 },
+        { note: 'D5', duration: 0.25 },
+        { note: 'E5', duration: 0.25 },
+        { note: 'C5', duration: 0.25 },
+        { note: 'A4', duration: 0.25 },
+        { note: 'A4', duration: 0.375 }
+      ];
+      
+      // Frequency mapping for notes
+      const noteFrequencies = {
+        'A4': 440.0,
+        'B4': 493.9,
+        'C5': 523.3,
+        'D5': 587.3,
+        'E5': 659.3,
+        'F5': 698.5,
+        'G5': 784.0
+      };
+      
+      // Play the melody
+      const tempo = 0.15; // seconds per beat, adjust for speed
+      let startTime = audioContext.currentTime;
+      
+      // Master gain node for volume control
+      const masterGain = audioContext.createGain();
+      masterGain.gain.value = 0.2; // Lower volume
+      masterGain.connect(audioContext.destination);
+      
+      // Function to play a single note
+      function playNote(note, time, duration) {
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.type = 'square'; // Tetris-like sound
+        oscillator.frequency.value = noteFrequencies[note];
+        
+        // Envelope for the note
+        gainNode.gain.setValueAtTime(0, time);
+        gainNode.gain.linearRampToValueAtTime(0.8, time + 0.01);
+        gainNode.gain.setValueAtTime(0.8, time + duration * 0.8);
+        gainNode.gain.linearRampToValueAtTime(0, time + duration);
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(masterGain);
+        
+        oscillator.start(time);
+        oscillator.stop(time + duration);
+      }
+      
+      // Schedule the melody
+      tetrisNotes.forEach(noteObj => {
+        playNote(noteObj.note, startTime, noteObj.duration * tempo);
+        startTime += noteObj.duration * tempo;
+      });
+      
+      // Repeat the theme after it finishes
+      setTimeout(() => playTetrisTheme(), startTime * 1000);
+    }
+    
+    // Play Tetris sound effect (for piece movements, collisions)
+    function playTetrisSound() {
+      if (!audioInitialized) return;
+      
+      try {
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        // Random parameters for the sound
+        const isMove = Math.random() > 0.5;
+        
+        if (isMove) {
+          // Movement sound (higher pitch, short)
+          oscillator.type = 'square';
+          oscillator.frequency.value = 500 + Math.random() * 200;
+          
+          gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+          gainNode.gain.linearRampToValueAtTime(0.1, audioContext.currentTime + 0.01);
+          gainNode.gain.linearRampToValueAtTime(0, audioContext.currentTime + 0.1);
+          
+          oscillator.connect(gainNode);
+          gainNode.connect(audioContext.destination);
+          
+          oscillator.start();
+          oscillator.stop(audioContext.currentTime + 0.1);
+        } else {
+          // Rotation sound (sweep)
+          oscillator.type = 'sine';
+          oscillator.frequency.setValueAtTime(300, audioContext.currentTime);
+          oscillator.frequency.linearRampToValueAtTime(600, audioContext.currentTime + 0.1);
+          
+          gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+          gainNode.gain.linearRampToValueAtTime(0.1, audioContext.currentTime + 0.01);
+          gainNode.gain.linearRampToValueAtTime(0, audioContext.currentTime + 0.15);
+          
+          oscillator.connect(gainNode);
+          gainNode.connect(audioContext.destination);
+          
+          oscillator.start();
+          oscillator.stop(audioContext.currentTime + 0.15);
+        }
+      } catch (error) {
+        console.error("Error playing sound:", error);
+      }
+    }
+    
+    // Animation loop
+    function animate() {
+      // Clear canvas
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      // Draw stars and orb
+      drawStars();
+      drawOrb();
+      
+      // Add and update tetris pieces
+      addTetrisPiece();
+      updateTetrisPieces();
+      
+      // Draw tetris pieces
+      tetrisPieces.forEach(piece => {
+        // Save context to apply rotations
+        ctx.save();
+        
+        // Move to the center point for rotation
+        let maxX = 0, maxY = 0;
+        for (let i = 0; i < piece.shape.length; i++) {
+          maxX = Math.max(maxX, piece.shape[i][0]);
+          maxY = Math.max(maxY, piece.shape[i][1]);
+        }
+        const centerX = piece.x + ((maxX + 1) * piece.blockSize) / 2;
+        const centerY = piece.y + ((maxY + 1) * piece.blockSize) / 2;
+        
+        ctx.translate(centerX, centerY);
+        ctx.rotate(piece.rotation * Math.PI / 180);
+        ctx.translate(-centerX, -centerY);
+        
+        // Draw the piece
+        drawTetrisPiece(
+          ctx, 
+          piece.shape, 
+          piece.x, 
+          piece.y, 
+          piece.blockSize, 
+          piece.color,
+          piece.alpha
+        );
+        
+        // Restore context
+        ctx.restore();
+      });
+      
+      // Continue animation loop
+      requestAnimationFrame(animate);
+    }
+    
+    // Start animation
+    animate();
+    
+    // Window resize event
+    window.addEventListener('resize', () => {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      
+      // Reset orb to center if near edges
+      if (orb.x < orb.radius || orb.x > canvas.width - orb.radius ||
+          orb.y < orb.radius || orb.y > canvas.height - orb.radius) {
+        orb.x = canvas.width / 2;
+        orb.y = canvas.height / 2;
+      }
+    });
+    
+    // Click counter functionality
+    let clickCount = 0;
+    let clickLog = [];
+    const clickButton = document.getElementById('clickButton');
+    const clickLogElement = document.getElementById('clickLog');
+    
+    // Load existing click data from localStorage
+    function loadClickData() {
+      const savedCount = localStorage.getItem('tetrisScreensaverClickCount');
+      const savedLog = localStorage.getItem('tetrisScreensaverClickLog');
+      
+      if (savedCount !== null) {
+        clickCount = parseInt(savedCount, 10);
+      }
+      
+      if (savedLog !== null) {
+        try {
+          clickLog = JSON.parse(savedLog);
+          // Display saved log entries
+          clickLog.forEach(entry => {
+            addLogEntry(entry.time, entry.count, false);
+          });
+        } catch (e) {
+          console.error('Error parsing saved click log:', e);
+          clickLog = [];
+        }
+      }
+      
+      // Update button text with current count
+      clickButton.textContent = `Clicks: ${clickCount}`;
+    }
+    
+    // Add log entry to the UI
+    function addLogEntry(timestamp, count, save = true) {
+      const entry = document.createElement('p');
+      entry.textContent = `${timestamp} - Click #${count}`;
+      clickLogElement.appendChild(entry);
+      
+      // Scroll to bottom
+      clickLogElement.scrollTop = clickLogElement.scrollHeight;
+      
+      // Save to log array if it's a new entry
+      if (save) {
+        clickLog.push({ time: timestamp, count: count });
+        
+        // Keep only the last 50 entries
+        if (clickLog.length > 50) {
+          clickLog.shift();
+        }
+        
+        // Save to localStorage
+        localStorage.setItem('tetrisScreensaverClickLog', JSON.stringify(clickLog));
+      }
+    }
+    
+    // Handle click button
+    clickButton.addEventListener('click', (e) => {
+      e.stopPropagation(); // Prevent triggering the fullscreen
+      
+      // Increment counter
+      clickCount++;
+      
+      // Update button text
+      clickButton.textContent = `Clicks: ${clickCount}`;
+      
+      // Format timestamp
+      const now = new Date();
+      const timestamp = now.toLocaleDateString() + ' ' + now.toLocaleTimeString();
+      
+      // Add to log
+      addLogEntry(timestamp, clickCount);
+      
+      // Show log
+      clickLogElement.style.display = 'block';
+      
+      // Save count to localStorage
+      localStorage.setItem('tetrisScreensaverClickCount', clickCount.toString());
+      
+      // Play a sound
+      if (audioInitialized) {
+        playTetrisSound();
+      } else {
+        initAudio();
+        playTetrisSound();
+      }
+    });
+    
+    // Load saved click data on start
+    loadClickData();
+    
+    // Document click for fullscreen toggle
+    document.addEventListener('click', (e) => {
+      // Don't trigger if clicking on or inside the button or log
+      if (e.target === clickButton || clickLogElement.contains(e.target)) {
+        return;
+      }
+      
+      // Initialize audio on first click
+      if (!audioInitialized) {
+        initAudio();
+      }
+      
+      // Toggle fullscreen
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen()
+          .then(() => {
+            document.body.classList.add('hide-cursor');
+          })
+          .catch(err => {
+            console.error('Error attempting to enable fullscreen:', err);
+          });
+      } else {
+        document.exitFullscreen()
+          .then(() => {
+            document.body.classList.remove('hide-cursor');
+          })
+          .catch(err => {
+            console.error('Error attempting to exit fullscreen:', err);
+          });
+      }
+    });
+ 
+   </script>
+    
+     <!-- Vercel Analytics -->
+     <script>
+       window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
+     </script>
+     <script defer src="/_vercel/insights/script.js"></script>
+    
+     <!-- Vercel Speed Insights -->
+     <script defer src="/_vercel/speed-insights/script.js"></script>
+   </body>
+</html>
